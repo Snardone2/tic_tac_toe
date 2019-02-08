@@ -2,130 +2,194 @@
 
 class TicTacToe
     def initialize
-        @top = Array.new
-        @middle = Array.new
-        @bottom = Array.new
-        @x_play = ""
-        @o_play = ""
-    end
-    
-end
+        @board = Board.new
 
-class PlayRound < TicTacToe
+        @player_x = Player.new("Madame X", :x, @board)
+        @player_y = Player.new("Mister Y", :y, @board)
 
-    puts "Remeber your choices are:"
-    puts "topleft       topcenter       topright"
-    puts "middleleft    middlecenter    middleright"
-    puts "bottomleft    bottomcenter    bottomright"
-
-    def player_x
-        puts "Player X, please select a position:"
-        @x_play = gets.chomp.downcase!
+        @current_player = @player_x
     end
 
-    def player_o
-        puts "Player O, please select a row:"
-        @o_play = gets.chomp.downcase!
-    end
+    def play
 
-end
+        loop do
+            @board.render
 
-class Board < TicTacToe
+            @current_player.get_coordinates
 
-    def x_play
-        if @x_play == "topleft"
-            top[0] = "X"
-        elsif @x_play == "topcenter"
-            top[1] = "X"
-        elsif @x_play == "topright"
-            top[2] = "X"
-        elsif @x_play == "middleleft"
-            middle[0] = "X"
-        elsif @x_play == "middlecenter"
-            middle[1] = "X"
-        elsif @x_play == "middleright"
-            middle[2] = "X"
-        elsif @x_play == "bottomleft"
-            bottom[0] = "X"
-        elsif @x_play == "bottomcenter"
-            bottom[1] = "X"
-        elsif @x_play == "bottomright"
-            bottom[2] = "X"        
-        else
-            puts "incorrect input" 
-        end 
-    end
+            break if check_game_over
 
-    def o_play
-        if @o_play == "topleft"
-            top[0] = "O"
-        elsif @o_play == "topcenter"
-            top[1] = "O"
-        elsif @o_play == "topright"
-            top[2] = "O"
-        elsif @o_play == "middleleft"
-            middle[0] = "O"
-        elsif @o_play == "middlecenter"
-            middle[1] = "O"
-        elsif @o_play == "middleright"
-            middle[2] = "O"
-        elsif @o_play == "bottomleft"
-            bottom[0] = "O"
-        elsif @o_play == "bottomcenter"
-            bottom[1] = "O"
-        elsif @o_play == "bottomright"
-            bottom[2] = "O"
-        else
-            puts "incorrect input" 
-        end       
-    end
-
-    def display_board
-        print @top
-        puts ""
-        print @middle
-        puts ""
-        print @bottom
-        puts ""
-    end
-
-end
-
-class CheckWin < TicTacToe
-    def win
-        if @top == ["X", "X", "X"] || @middle == ["X", "X", "X"] || @bottom == ["X", "X", "X"]
-            puts x_wins
-            exit
-        elsif @top == ["O", "O", "O"] || @middle == ["O", "O", "O"] || @bottom == ["O", "O", "O"]
-            puts o_wins
-            exit
-        elsif @top[0] == "X" && @middle[1] == "X" && @bottom[2] == "X"
-            puts x_wins
-            exit
-        elsif @top[2] == "X" && @middle[1] == "X" && @bottom[0] == "X"
-            puts x_wins
-            exit
-        elsif @top[0] == "O" && @middle[1] == "O" && @bottom[2] == "O"
-            puts o_wins
-            exit
-        elsif @top[2] == "O" && @middle[1] == "O" && @bottom[0] == "O"
-            puts o_wins
-            exit
-        else
-            puts "On to the next round!"
+            switch_players
         end
     end
 
-    def x_wins
-        puts "Congratulations!"
-        puts "Xs win! Xs win! Xs win!"
+    def check_game_over
+        check_victory || check_draw
     end
 
-    def o_wins
-        puts "Congratulations!"
-        puts "Os win! Os win! Os win!"
+    def check_victory
+        if @board.winning_combination?(@current_player.piece)
+            puts "Congratulations #{@current_player.name}, you win!"
+            true
+        else
+            false
+        end
     end
 
-    PlayRound
+    def check_draw
+        if @board.full?
+            puts "Bummer, you've drawn..."
+            true
+        else
+            false
+        end
+    end
+
+    def switch_players
+        if @current_player == @player_x
+            @current_player = @player_y
+        else
+            @current_player = @player_x
+        end
+    end
 
 end
+
+
+class Player
+    attr_accessor :name, :piece
+
+    def initialize(name = "Mystery_Player", piece, board)
+        raise "Piece must be a Symbol!" unless piece.is_a?(Symbol)
+        @name = name
+        @piece = piece
+        @board = board
+    end
+
+    def get_coordinates
+        loop do
+            coords = ask_for_coordinates
+
+            if validate_coordinates_format(coords)
+                if @board.add_piece(coords, @piece)
+                    break
+                end
+            end
+        end
+    end
+
+
+    def ask_for_coordinates
+        puts "#{@name}(#{@piece}), enter your coordinates in the form x,y:"
+        gets.strip.split(",").map(&:to_i)
+    end
+
+    def validate_coordinates_format(coords)
+        if coords.is_a?(Array) && coords.size == 2
+            true
+        else
+            puts "Your coordinates are in the improper format!"
+        end
+    end
+
+end
+
+
+class Board
+    def initialize
+        @board = Array.new(3){Array.new(3)}
+    end
+
+    def render
+        puts
+        @board.each do |row|
+            row.each do |cell|
+                cell.nil? ? print("-") : print(cell.to_s)
+            end
+            puts
+        end
+        puts
+
+    end
+
+    def add_piece(coords, piece)
+        if piece_location_valid?(coords)
+            @board[coords[0]][coords[1]] = piece
+            true
+        else
+            false
+        end
+    end
+
+    def piece_location_valid?(coords)
+        if within_valid_coordinates?(coords)
+            coordinates_available?(coords)
+        end
+    end
+
+    def within_valid_coordinates?(coords)
+        if (0..2).include?(coords[0]) && (0..2).include?(coords[1])
+            true
+        else
+            puts "Piece coordinates are out of bounds"
+        end
+    end
+
+    def coordinates_available?(coords)
+        if @board[coords[0]][coords[1]].nil?
+            true
+        else
+            puts "There is already a piece there!"
+        end
+    end
+
+    def winning_combination?(piece)
+        winning_diagonal?(piece)   || 
+        winning_horizontal?(piece) || 
+        winning_vertical?(piece)
+    end
+
+    def winning_diagonal?(piece)
+        diagonals.any? do |diag|
+            diag.all?{|cell| cell == piece }
+        end
+    end
+
+    def winning_vertical?(piece)
+        verticals.any? do |vert|
+            vert.all?{|cell| cell == piece }
+        end
+    end
+
+    def winning_horizontal?(piece)
+        horizontals.any? do |horz|
+            horz.all?{|cell| cell == piece }
+        end
+    end
+
+    def diagonals
+        [[ @board[0][0],@board[1][1],@board[2][2] ],[ @board[2][0],@board[1][1],@board[0][2] ]]
+    end
+
+    def verticals
+        @board
+    end
+
+    def horizontals
+        horizontals = []
+        3.times do |i|
+            horizontals << [@board[0][i],@board[1][i],@board[2][i]]
+        end
+        horizontals
+    end
+
+    def full?
+        @board.all? do |row|
+            row.none?(&:nil?)
+        end
+    end
+
+end
+
+t = TicTacToe.new
+t.play
